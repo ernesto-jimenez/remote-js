@@ -15,7 +15,12 @@ This is a node.js app, so you'll need to install node. That's all :)
 
 ## Installation and usage
 
+Getting the tool running is simple.
 
+    git clone https://github.com/ernesto-jimenez/remote-js
+    ./remote-js/remote_js
+
+Now you just need to copy & paste the script tag into your web page and start playing around.
 
 ## Contribute
 
