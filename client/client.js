@@ -55,7 +55,13 @@ RemoteJSDebugger.prototype.socketSend = function (data) {
 
 RemoteJSDebugger.prototype.connect = function () {
 	if (this.socket === undefined || this.socket.readyState === this.socket.CLOSED) {
-		var socket = new WebSocket("ws://localhost:3400/");  
+		var script, scripts = document.getElementsByTagName('script');
+		for (var i in scripts) {
+			script = scripts[i].src;
+			if (script && script.match(':3400')) break;
+		}
+		script = script.replace('/client.js', '/').replace('http', 'ws');
+		var socket = new WebSocket(script);
 
 		socket.onopen    = this.socketOpen;
 		socket.onmessage = this.socketGetMessage;
