@@ -26,6 +26,7 @@ var Shell = {
 	historySize: 0,
 	// Command buffer
 	cmd: "",
+	cursor: 0,
 	// Write in stdout
 	write: function (data) {
 		process.stdout.write(data);
@@ -35,7 +36,7 @@ var Shell = {
 		var data = Shell.cmd.toString();
 		data = data.replace(/[\r\n]{1,2}$/, '');
 		
-		Shell.write(data + "\n");
+		Shell.write("\n");
 		
 		var cmdOpts = data.split(' '), cmd = cmdOpts.shift();
 		
@@ -53,17 +54,40 @@ var Shell = {
 		Shell.history.push(data);
 		Shell.historySize++;
 		Shell.historyIndex = Shell.historySize;
-		Shell.cmd = "";
+		Shell.setCmd("");
 	},
 	// Close tool
 	exit: function() {
 		Shell.write("Bye\n");
 		process.exit(0);
 	},
+	cmdFromCursorToEnd: function (resetCursor) {
+		var currentCmd = Shell.cmd, currentCursor = Shell.cursor,
+				cmdLength = currentCmd.length,
+				rest = "", cursorBack = "";
+		
+		if (currentCursor < cmdLength) {
+			rest = currentCmd.substr(currentCursor, cmdLength);
+			if (resetCursor) cursorBack = Shell.backToCursor();
+		}
+		
+		return rest + cursorBack;
+	},
+	backToCursor: function () {
+		var cursorBack = "";
+		for (var i = Shell.cmd.length - Shell.cursor; i > 0; i--) {
+			cursorBack += "\b";
+		}
+		return cursorBack;
+	},
 	// Read user input
 	read: function(chunk) {
-		Shell.write(chunk);
-		Shell.cmd += chunk;
+		var currentCmd = Shell.cmd, currentCursor = Shell.cursor,
+				cmdLength = currentCmd.length,
+				rest = Shell.cmdFromCursorToEnd(), cursorBack = "";
+		Shell.write(chunk + Shell.cmdFromCursorToEnd(true));
+		Shell.cmd = currentCmd.substr(0, currentCursor) + chunk + rest;
+		Shell.cursor += chunk.length;
 	},
 	// Clear line
 	clearLine: function () {
@@ -79,13 +103,24 @@ var Shell = {
 	// Clear command
 	clear: function() {
 		Shell.clearLine();
-		Shell.cmd = "";
+		Shell.setCmd('');
+	},
+	setCmd: function (cmd) {
+		Shell.cmd = cmd;
+		Shell.cursor = cmd.length;
 	},
 	// User backspace
 	backspace: function () {
-		if (Shell.cmd.length) {
-			Shell.cmd = Shell.cmd.substr(0,Shell.cmd.length - 2);
-			Shell.write("\b \b");
+		var currentCmd = Shell.cmd, cmdLength = currentCmd.length;
+		if (currentCmd.length) {
+			//Shell.setCmd(Shell.cmd.substr(0,Shell.cmd.length - 2));
+			//Shell.cmd(
+			var rest = Shell.cmdFromCursorToEnd();
+			var cursor = Shell.cursor - 1;
+			Shell.clearLine();
+			Shell.setCmd(currentCmd.substr(0, cursor) + rest);
+			Shell.cursor = cursor;
+			Shell.write(Shell.cmd + Shell.backToCursor());
 		}
 	},
 	// History up
@@ -93,7 +128,7 @@ var Shell = {
 		if (Shell.historyIndex > 0) {
 			Shell.historyIndex--;
 			Shell.clear();
-			Shell.cmd = Shell.history[Shell.historyIndex];
+			Shell.setCmd(Shell.history[Shell.historyIndex]);
 			Shell.write(Shell.cmd);
 		}
 	},
@@ -102,7 +137,7 @@ var Shell = {
 		if (Shell.historyIndex < Shell.historySize) {
 			Shell.historyIndex++;
 			Shell.clear();
-			Shell.cmd = Shell.history[Shell.historyIndex] || "";
+			Shell.setCmd(Shell.history[Shell.historyIndex] || "");
 			Shell.write(Shell.cmd);
 		}
 	},
@@ -122,6 +157,18 @@ var Shell = {
 		}
 		Shell.write("Any other input is executed in the remote client\n");
 	},
+	cursorLeft: function () {
+		if (Shell.cursor > 0) {
+			Shell.write("\b");
+			Shell.cursor--;
+		}
+	},
+	cursorRight: function () {
+		if (Shell.cursor < Shell.cmd.length) {
+			Shell.write(Shell.cmd.charAt(Shell.cursor));
+			Shell.cursor++;
+		}
+	},
 	init: function (command, commands) {
 		var stdin = process.openStdin();
 		
@@ -133,14 +180,16 @@ var Shell = {
 		stdin.setEncoding('utf8');
 
 		stdin.on('keypress', function (chunk, key) {
-			if (chunk) Shell.read(chunk);
 			if (key) {
-				if (key.ctrl && key.name === 'c') Shell.clear();
-				else if (key.name === 'up') Shell.historyUp();
-				else if (key.name === 'down') Shell.historyDown();
-				else if (key.name === 'enter') Shell.process();
-				else if (key.name === 'backspace') Shell.backspace();
+				if (key.ctrl && key.name === 'c')  return Shell.clear();
+				else if (key.name === 'up')        return Shell.historyUp();
+				else if (key.name === 'down')      return Shell.historyDown();
+				else if (key.name === 'left')      return Shell.cursorLeft();
+				else if (key.name === 'right')     return Shell.cursorRight();
+				else if (key.name === 'enter')     return Shell.process();
+				else if (key.name === 'backspace') return Shell.backspace();
 			}
+			if (chunk) Shell.read(chunk);
 		});
 		
 		stdin.on('end', function () {
