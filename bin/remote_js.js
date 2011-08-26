@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-
-var RemoteExecution = require('./server/remote_execution.js').RemoteExecution,
-Shell = require('./server/shell.js').Shell;
+;(function () { // wrapper in case we're in module_context mode
+var RemoteExecution = require('../server/remote_execution.js').RemoteExecution,
+		Shell = require('../server/shell.js').Shell;
 
 RemoteExecution.init();
 RemoteExecution.printInstructions();
@@ -49,3 +49,4 @@ Shell.init(RemoteExecution.sendCmd,{
 		}
 	}
 });
+})();

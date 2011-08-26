@@ -1,0 +1,29 @@
+{
+  "name": "remote_js",
+  "version": "0.2.0",
+  "description": "Command-line remote javascript console to debug your mobile web app",
+  "homepage": "https://github.com/ernesto-jimenez/remote-js",
+  "keywords": ["remote", "javascript console"],
+  "author": {
+    "name": "Ernesto Jimenez",
+    "email": "erjica@gmail.com",
+    "url": "http://twitter.com/ernesto_jimenez"
+  },
+  "repository": {
+    "type": "git",
+    "url":  "https://ernesto-jimenez@github.com/ernesto-jimenez/remote-js.git"
+  },
+  "dependencies": {
+    "socket.io": "0.7.9",
+    "colorize": "0.1.0"
+  },
+  "files": ["remote_js", "README.md", "package.json", "server", "client", "bin"],
+  "directories": {
+    "bin": "./bin"
+  },
+  "main": "remote_js",
+  "bin": {
+    "remote_js": "./bin/remote_js.js"
+  },
+  "engines": ["node"]
+}

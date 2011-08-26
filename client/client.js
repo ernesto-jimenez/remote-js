@@ -1,24 +1,36 @@
 var RemoteJSDebugger = function () {
 	if (RemoteJSDebugger.instance === undefined) {
-		this.connect();
-		RemoteJSDebugger.console = window.console || {log: function () {}};
-		window.console = {
-			log: function (data) {
-				RemoteJSDebugger.instance.send({
-					msg: 'log',
-					data: data
-				});
-			}
-		};
 		RemoteJSDebugger.instance = this;
-	}
-	if (window.JSON === undefined) {
-		var script = document.createElement("script");
-		script.src = "/json.js";
-		script.type = "text/javascript";
-		document.getElementsByTagName("head")[0].appendChild(script);
+		if (window.io === undefined) {
+			var url = this.serviceUrl() + 'socket.io/socket.io.js';
+			this.loadScript(url, this.createInstance);
+		} else {
+			this.createInstance();
+		}
 	}
 	return RemoteJSDebugger.instance;
+};
+
+RemoteJSDebugger.prototype.createInstance = function () {
+	RemoteJSDebugger.instance.connect();
+	RemoteJSDebugger.console = window.console || {
+		log: function () {}, debug: function () {}
+	};
+	var log = function (data) {
+		RemoteJSDebugger.instance.send('log', data);
+	};
+	window.console = {
+		log: log,
+		debug: log
+	};
+};
+
+RemoteJSDebugger.prototype.loadScript = function (src, loadCallback) {
+	var script = document.createElement("script");
+	script.src = src;
+	script.type = "text/javascript";
+	if (loadCallback) script.onload = loadCallback;
+	document.getElementsByTagName("head")[0].appendChild(script);
 };
 
 RemoteJSDebugger.prototype.socketOpen = function () {
@@ -26,10 +38,8 @@ RemoteJSDebugger.prototype.socketOpen = function () {
 };
 
 RemoteJSDebugger.prototype.socketGetMessage = function (msg) {
-	RemoteJSDebugger.console.log(msg);
-	
 	try {
-		RemoteJSDebugger.instance.run(JSON.parse(msg.data));
+		RemoteJSDebugger.instance.run(msg);
 	} catch(exception) {
 		RemoteJSDebugger.instance.sendException(exception);
 	}
@@ -53,34 +63,38 @@ RemoteJSDebugger.prototype.socketSend = function (data) {
 	this.socket.send(data);
 };
 
+RemoteJSDebugger.prototype.serviceUrl = function () {
+	var script, scripts = document.getElementsByTagName('script');
+	for (var i in scripts) {
+		script = scripts[i].src;
+		if (script && script.match(':3400')) break;
+	}
+	return script.replace('/client.js', '/');
+};
+
 RemoteJSDebugger.prototype.connect = function () {
 	if (this.socket === undefined || this.socket.readyState === this.socket.CLOSED) {
-		var script, scripts = document.getElementsByTagName('script');
-		for (var i in scripts) {
-			script = scripts[i].src;
-			if (script && script.match(':3400')) break;
-		}
-		script = script.replace('/client.js', '/').replace('http', 'ws');
-		var socket = new WebSocket(script);
+		var url = this.serviceUrl() + 'remote-js',
+				socket = io.connect(url);
 
-		socket.onopen    = this.socketOpen;
-		socket.onmessage = this.socketGetMessage;
-		socket.onclose   = this.socketClose;
+		socket.on('connect',    this.socketOpen);
+		socket.on('command',    this.socketGetMessage);
+		socket.on('disconnect', this.socketClose);
 
 		this.socket = socket;
 	}
 };
 
-RemoteJSDebugger.prototype.send = function (object) {
-	this.socketSend(JSON.stringify(object));
+RemoteJSDebugger.prototype.send = function (msg, object) {
+	this.socket.emit("message", {msg: msg, data: object});
 };
 
 RemoteJSDebugger.prototype.sendResult = function (result) {
-	this.send({msg: 'cmdresult', data: result});
+	this.send('cmdresult', result);
 };
 
 RemoteJSDebugger.prototype.sendException = function (exception) {
-	this.send({msg: 'exception', data: exception});
+	this.send('exception', exception);
 };
 
 var rjs = new RemoteJSDebugger();

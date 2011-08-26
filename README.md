@@ -15,10 +15,21 @@ This is a node.js app, so you'll need to install node. That's all :)
 
 ## Installation and usage
 
-Getting the tool running is simple.
+Getting the tool running is simple:
+
+**Using npm**
+
+    npm install remote_js
+    remote_js
+
+_If remote\_js is not found you'll need to make sure your $PATH contains `npm bin`. If `npm bin` is $PWD/node\_modules/.bin your $PATH should contain node\_modules/.bin/_
+
+**From source**
 
     git clone https://github.com/ernesto-jimenez/remote-js
-    ./remote-js/remote_js
+    cd remote-js
+    npm install
+    ./bin/remote_js.js
 
 Now you just need to copy & paste the script tag into your web page and start playing around.
 

@@ -1,25 +1,26 @@
-var ws = require('../vendor/node-websocket-server/lib/ws/server.js'),
+var io = require('socket.io'),
 		os = require('os'),
 		http = require('http'),
 		fs = require("fs"),
+		colorize = require('colorize'),
 		path = require("path");
 
 function log(msg) {
-	console.log('\033[37m' + msg + '\033[39m');
+	console.log(colorize.ansify('#gray[' + msg + ']'));
 }
 
 function error(msg) {
-	console.log('\033[31m' + msg + '\033[39m');
+	console.log(colorize.ansify('#red[' + msg + ']'));
 }
 
 function clientLog(msg) {
-	console.log('\033[35m' + msg + '\033[39m');
+	console.log(colorize.ansify('#blue[' + msg + ']'));
 }
 
 function clientOutput(msg) {
-	process.stdout.write('\033[32m');
+	process.stdout.write(colorize.ansify('=> #green['));
 	console.log(msg);
-	process.stdout.write('\033[39m');
+	process.stdout.write(colorize.ansify(']'));
 }
 
 var RemoteExecution = {
@@ -28,21 +29,30 @@ var RemoteExecution = {
 		RemoteExecution.client = undefined;
 		RemoteExecution.setupServer();
 	},
+
 	printInstructions: function () {
 		var url = 'http://' + os.hostname() + ':3400/client.js';
 		log('Add this to your HTML and open the webpage <script src="' + url + '"></script>');
 	},
+
 	setupServer: function () {
 		var httpServer = RemoteExecution.httpServer();
 
-		var server = ws.createServer({debug: false, server: httpServer});
-		RemoteExecution.server = server;
+		var server = io.listen(httpServer);
+		if (process.env.debug) {
+			server = server.set('log level', 3);
+		} else {
+			server = server.set('log level', 1);
+		}
 
 		// Handle WebSocket Requests
-		server.on("connection", RemoteExecution.clientConnected);
+		server.of('/remote-js').on("connection", RemoteExecution.clientConnected);
 
-		server.listen(3400);
+		httpServer.listen(3400);
+
+		RemoteExecution.server = server;
 	},
+
 	httpServer: function () {
 		return http.createServer(function(req, res){
 			if(req.method == "GET"){
@@ -68,6 +78,7 @@ var RemoteExecution = {
 			}
 		});
 	},
+
 	clientConnected: function (conn){
 		log("Connected " + conn.id);
 		RemoteExecution.clients[conn.id] = {connection: conn};
@@ -75,11 +86,11 @@ var RemoteExecution = {
 			RemoteExecution.selectClient(conn.id);
 		}
 
-		conn.addListener("message", function (message) {
+		conn.on("message", function (message) {
 			RemoteExecution.receiveMessage(conn, message);
 		});
 
-		conn.addListener("close", function () {
+		conn.on("disconnect", function () {
 			RemoteExecution.clientDisconnected(conn);
 		});
 	},
@@ -95,9 +106,8 @@ var RemoteExecution = {
 
 	receiveMessage: function (conn, message) {
 		try {
-			var client_message = JSON.parse(message);
-			if (RemoteExecution.messages[client_message.msg]) {
-				RemoteExecution.messages[client_message.msg](client_message.data);
+			if (RemoteExecution.messages[message.msg]) {
+				RemoteExecution.messages[message.msg](message.data);
 			} else {
 				log("Unknown message");
 				log(client_message);
@@ -144,9 +154,9 @@ var RemoteExecution = {
 	send: function (data) {
 		if (RemoteExecution.client) {
 			var client = RemoteExecution.clients[RemoteExecution.client];
-			client.connection.send(JSON.stringify(data));
+			client.connection.emit("command", data);
 		} else {
-			log("ERROR: no client connected");
+			error("ERROR: no client connected, type 'help'");
 		}
 	},
 	
