@@ -162,8 +162,8 @@ var RemoteExecution = {
 	
 	disconnect: function () {
 		if (RemoteExecution.client) {
-			var client = RemoteExecution.clients[RemoteExecution.client];
-			client.connection.close();
+      RemoteExecution.client = undefined;
+      RemoteExecution.selectClient();
 		}
 	}
 };

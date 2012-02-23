@@ -14,7 +14,7 @@
     "url":  "https://ernesto-jimenez@github.com/ernesto-jimenez/remote-js.git"
   },
   "dependencies": {
-    "socket.io": "0.7.9",
+    "socket.io": "0.8.7",
     "colorize": "0.1.0"
   },
   "files": ["remote_js", "README.md", "package.json", "server", "client", "bin"],
