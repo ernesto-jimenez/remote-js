@@ -78,7 +78,23 @@
     }
   };
 
-  var shell = readline.createInterface(process.stdin, process.stdout, null);
+  var shell = readline.createInterface(process.stdin, process.stdout, function(linePartial, callback) {
+    var items = commands;
+
+    if(linePartial.match(/^select /)) {
+      items = RemoteExecution.clients;
+      linePartial = linePartial.substr('select '.length);
+    }
+
+    var matches = [];
+    for (var k in items) {
+      if (linePartial.length <= k.length
+        && k.substr(0, linePartial.length) == linePartial) {
+        matches.push(k);
+      }
+    }
+    callback(null, [matches, linePartial]);
+  });
   shell.on('line', function (line) {
     line = line.trim();
     if (line === '') {
