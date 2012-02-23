@@ -118,7 +118,7 @@
     select: {
       desc: 'select a connected client',
       fn: function (client) {
-        remote.selectClient(client[0]);
+        selectClient(client[0]);
       }
     },
     selected: {
