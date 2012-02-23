@@ -73,8 +73,9 @@ RemoteJSDebugger.prototype.serviceUrl = function () {
 		if (script && script.match('/client.js')) break;
 	}
   if(!script) {
-    alert("Could not find window.remoteJsServiceUrl try setting it explicitly")
-    return;
+    var msg = "Could not find window.remoteJsServiceUrl try setting it explicitly";
+    alert(msg);
+    throw new Error(msg);
   }
 	return script.replace('/client.js', '/');
 };
