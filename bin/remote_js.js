@@ -3,8 +3,16 @@
 (function () { // wrapper in case we're in module_context mode
   var RemoteExecution = require('../server/remote_execution.js').RemoteExecution;
   var readline = require('readline');
+  var args = require('commander');
 
-  RemoteExecution.init();
+  args
+    .option('-v, --verbose', 'Verbose output')
+    .option('-p, --port <n>', 'Port (default: 3400)', parseInt);
+
+  args.parse(process.argv)
+  args.port = args.port || 3400;
+
+  RemoteExecution.init(args);
   RemoteExecution.printInstructions();
 
   var commands = {

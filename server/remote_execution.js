@@ -24,14 +24,15 @@ function clientOutput(msg) {
 }
 
 var RemoteExecution = {
-	init: function () {
+	init: function (args) {
+    RemoteExecution.args = args;
 		RemoteExecution.clients = {};
 		RemoteExecution.client = undefined;
 		RemoteExecution.setupServer();
 	},
 
 	printInstructions: function () {
-		var url = 'http://' + os.hostname() + ':3400/client.js';
+		var url = 'http://' + os.hostname() + ':' + RemoteExecution.args.port + '/client.js';
 		log('Add this to your HTML and open the webpage <script src="' + url + '"></script>');
 	},
 
@@ -39,7 +40,7 @@ var RemoteExecution = {
 		var httpServer = RemoteExecution.httpServer();
 
 		var server = io.listen(httpServer);
-		if (process.env.debug) {
+		if (RemoteExecution.args.verbose) {
 			server = server.set('log level', 3);
 		} else {
 			server = server.set('log level', 1);
@@ -48,7 +49,7 @@ var RemoteExecution = {
 		// Handle WebSocket Requests
 		server.of('/remote-js').on("connection", RemoteExecution.clientConnected);
 
-		httpServer.listen(3400);
+		httpServer.listen(RemoteExecution.args.port);
 
 		RemoteExecution.server = server;
 	},

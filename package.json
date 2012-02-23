@@ -15,7 +15,8 @@
   },
   "dependencies": {
     "socket.io": "0.8.7",
-    "colorize": "0.1.0"
+    "colorize": "0.1.0",
+    "commander": "0.5.2"
   },
   "files": ["remote_js", "README.md", "package.json", "server", "client", "bin"],
   "directories": {

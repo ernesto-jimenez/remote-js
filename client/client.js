@@ -64,11 +64,18 @@ RemoteJSDebugger.prototype.socketSend = function (data) {
 };
 
 RemoteJSDebugger.prototype.serviceUrl = function () {
+  if(window.remoteJsServiceUrl) {
+    return window.remoteJsServiceUrl;
+  }
 	var script, scripts = document.getElementsByTagName('script');
 	for (var i in scripts) {
 		script = scripts[i].src;
-		if (script && script.match(':3400')) break;
+		if (script && script.match('/client.js')) break;
 	}
+  if(!script) {
+    alert("Could not find window.remoteJsServiceUrl try setting it explicitly")
+    return;
+  }
 	return script.replace('/client.js', '/');
 };
 
