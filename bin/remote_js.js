@@ -95,8 +95,6 @@
     log('');
   });
 
-  printInstructions(args);
-
   var commands = {
     ls: {
       desc: 'list connected clients',
@@ -163,7 +161,7 @@
     }
   };
 
-  var shell = readline.createInterface(process.stdin, process.stdout, function (linePartial, callback) {
+  function shellCompleter(linePartial, callback) {
     var items = commands;
 
     if (linePartial.match(/^select /)) {
@@ -179,7 +177,10 @@
       }
     }
     callback(null, [matches, linePartial]);
-  });
+  }
+
+  var shell = readline.createInterface(process.stdin, process.stdout, shellCompleter);
+
   shell.on('line', function (line) {
     line = line.trim();
     if (line === '') {
@@ -202,7 +203,10 @@
     }
     shell.prompt();
   });
+  
   shell.setPrompt('> ');
+
+  printInstructions(args);
   shell.prompt();
 
 })();
