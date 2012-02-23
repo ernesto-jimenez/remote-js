@@ -4,6 +4,8 @@
   var RemoteExecution = require('../server/remote_execution.js').RemoteExecution;
   var readline = require('readline');
   var args = require('commander');
+  var colorize = require('colorize');
+  var os = require('os');
 
   args
     .option('-v, --verbose', 'Verbose output')
@@ -12,8 +14,84 @@
   args.parse(process.argv)
   args.port = args.port || 3400;
 
+  var selectedClient = undefined;
   var remote = new RemoteExecution(args);
-  remote.printInstructions();
+
+  function log (msg) {
+    console.log(colorize.ansify('#gray[' + msg + ']'));
+  }
+
+  function error (msg) {
+    console.log(colorize.ansify('#red[' + msg + ']'));
+  }
+
+  function clientLog (msg) {
+    console.log(colorize.ansify('#blue[' + msg + ']'));
+  }
+
+  function clientOutput (msg) {
+    process.stdout.write(colorize.ansify('=> #green['));
+    console.log(msg);
+    process.stdout.write(colorize.ansify(']'));
+  }
+
+  function printInstructions (arg) {
+    var url = 'http://' + os.hostname() + ':' + args.port + '/client.js';
+    log('Add this to your HTML and open the webpage <script src="' + url + '"></script>');
+  }
+
+  function selectClient (client) {
+    for (var conn_id in remote.clients) {
+      if (client == undefined || (conn_id + '').match("^" + client)) {
+        selectedClient = conn_id;
+        log("Selected client " + conn_id);
+        return;
+      }
+    }
+
+    log('No client selected');
+  }
+
+  remote.on('clientConnected', function (conn) {
+    log("Connected " + conn.id);
+    if (selectedClient === undefined) {
+      selectClient(conn.id);
+    }
+  });
+
+  remote.on('clientDisconnected', function (conn) {
+    log("Disconnected " + conn.id);
+    if (selectedClient === conn.id) {
+      selectedClient = undefined;
+      selectClient();
+    }
+  });
+
+  remote.on('message', function(conn, message) {
+    try {
+      switch(message.msg) {
+        case 'cmdresult':
+          clientOutput(message.data);
+          break;
+        case 'exception':
+          error("Remote Error: " + message.data.message);
+          if (message.data.sourceURL) error("  " + message.data.sourceURL + ':' + message.data.line);
+          break;
+        case 'log':
+          clientLog(message.data);
+          break;
+        default:
+          log("Unknown message");
+          log(client_message);
+          break;
+      }
+    } catch (exception) {
+      log(exception.stack);
+    }
+    log('');
+  });
+
+  printInstructions(args);
 
   var commands = {
     ls: {
@@ -31,7 +109,7 @@
           console.log("Select your client with the select command");
         } else {
           console.log("No clients connected");
-          remote.printInstructions();
+          printInstructions(args);
         }
       }
     },
@@ -54,7 +132,10 @@
     disconnect: {
       desc: 'disconnect current client',
       fn: function () {
-        remote.disconnect();
+        if (selectedClient) {
+          selectedClient = undefined;
+          selectClient();
+        }
       }
     },
     help: {
@@ -110,7 +191,11 @@
       return;
     }
 
-    remote.sendCmd(line);
+    if (selectedClient) {
+      remote.sendCmd(selectedClient, line);
+    } else {
+      error("ERROR: no client connected, type 'help'");
+    }
     shell.prompt();
   });
   shell.setPrompt('> ');

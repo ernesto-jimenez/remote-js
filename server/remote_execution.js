@@ -1,39 +1,19 @@
 var io = require('socket.io'),
-  os = require('os'),
   http = require('http'),
   fs = require("fs"),
-  colorize = require('colorize'),
+  util = require("util"),
+  events = require("events"),
   path = require("path");
 
-function log (msg) {
-  console.log(colorize.ansify('#gray[' + msg + ']'));
-}
-
-function error (msg) {
-  console.log(colorize.ansify('#red[' + msg + ']'));
-}
-
-function clientLog (msg) {
-  console.log(colorize.ansify('#blue[' + msg + ']'));
-}
-
-function clientOutput (msg) {
-  process.stdout.write(colorize.ansify('=> #green['));
-  console.log(msg);
-  process.stdout.write(colorize.ansify(']'));
-}
-
 var RemoteExecution = function (args) {
+  var self = this;
+
   this.args = args;
   this.clients = {};
-  this.client = undefined;
   this.setupServer();
 };
 
-RemoteExecution.prototype.printInstructions = function () {
-  var url = 'http://' + os.hostname() + ':' + this.args.port + '/client.js';
-  log('Add this to your HTML and open the webpage <script src="' + url + '"></script>');
-};
+util.inherits(RemoteExecution, events.EventEmitter);
 
 RemoteExecution.prototype.setupServer = function () {
   var httpServer = this.httpServer();
@@ -81,86 +61,28 @@ RemoteExecution.prototype.httpServer = function () {
 };
 
 RemoteExecution.prototype.clientConnected = function (conn) {
-  log("Connected " + conn.id);
   this.clients[conn.id] = {connection: conn};
-  if (this.client === undefined) {
-    this.selectClient(conn.id);
-  }
-
   conn.on("message", this.receiveMessage.bind(this, conn));
   conn.on("disconnect", this.clientDisconnected.bind(this, conn));
+  this.emit('clientConnected', conn);
 };
 
 RemoteExecution.prototype.clientDisconnected = function (conn) {
-  log("Disconnected " + conn.id);
   delete this.clients[conn.id];
-  if (this.client === conn.id) {
-    this.client = undefined;
-    this.selectClient();
-  }
+  this.emit('clientDisconnected', conn);
 };
 
 RemoteExecution.prototype.receiveMessage = function (conn, message) {
-  try {
-    if (this.messages[message.msg]) {
-      this.messages[message.msg](message.data);
-    } else {
-      log("Unknown message");
-      log(client_message);
-    }
-  } catch (exception) {
-    log(exception.stack);
-  }
-  log('');
+  this.emit('message', conn, message);
 };
 
-RemoteExecution.prototype.messages = {
-  cmdresult: function (data) {
-    clientOutput(data);
-  },
-  exception: function (data) {
-    error("Remote Error: " + data.message);
-    if (data.sourceURL) error("  " + data.sourceURL + ':' + data.line);
-  },
-  log: function (msg) {
-    clientLog(msg);
-  }
+RemoteExecution.prototype.sendCmd = function (clientId, cmd) {
+  this.send(clientId, {cmd: 'run', data: cmd});
 };
 
-RemoteExecution.prototype.selectClient = function (client) {
-  for (var conn_id in this.clients) {
-    if (client == undefined || (conn_id + '').match("^" + client)) {
-      this.client = conn_id;
-      log("Selected client " + conn_id);
-      return;
-    }
-  }
-
-  log('No client selected');
-};
-
-RemoteExecution.prototype.sendCmd = function (cmd) {
-  this.send({cmd: 'run', data: cmd});
-};
-
-RemoteExecution.prototype.requestInfo = function () {
-  this.send({cmd: 'requestInfo'});
-};
-
-RemoteExecution.prototype.send = function (data) {
-  if (this.client) {
-    var client = this.clients[this.client];
-    client.connection.emit("command", data);
-  } else {
-    error("ERROR: no client connected, type 'help'");
-  }
-};
-
-RemoteExecution.prototype.disconnect = function () {
-  if (this.client) {
-    this.client = undefined;
-    this.selectClient();
-  }
+RemoteExecution.prototype.send = function (clientId, data) {
+  var client = this.clients[clientId];
+  client.connection.emit("command", data);
 };
 
 exports.RemoteExecution = RemoteExecution;
