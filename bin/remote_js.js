@@ -52,6 +52,10 @@
     log('No client selected');
   }
 
+  remote.on('error', function(err) {
+    error(err);
+  });
+
   remote.on('clientConnected', function (conn) {
     log("Connected " + conn.id);
     if (selectedClient === undefined) {

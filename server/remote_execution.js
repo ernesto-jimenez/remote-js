@@ -34,6 +34,8 @@ RemoteExecution.prototype.setupServer = function () {
 };
 
 RemoteExecution.prototype.httpServer = function () {
+  var self = this;
+
   return http.createServer(function (req, res) {
     if (req.method == "GET") {
       if (req.url.indexOf("favicon") > -1) {
@@ -41,17 +43,14 @@ RemoteExecution.prototype.httpServer = function () {
         res.end("");
       } else if (req.url === "/client.js" || req.url === "/json.js") {
         res.writeHead(200, {'Content-Type': 'application/javascript', 'Connection': 'close'});
-        fs.createReadStream(path.normalize(path.join(__dirname, "../client" + req.url)), {
-          'flags': 'r',
-          'encoding': 'binary',
-          'mode': 0666,
-          'bufferSize': 4 * 1024
-        }).addListener("data",
-          function (chunk) {
-            res.write(chunk, 'binary');
-          }).addListener("end", function () {
-            res.end();
-          });
+        var filename = path.normalize(path.join(__dirname, "../client" + req.url));
+        fs.readFile(filename, function (err, data) {
+          if (err) {
+            self.emit('error', err);
+            return;
+          }
+          res.end(data);
+        });
       }
     } else {
       res.writeHead(404);
