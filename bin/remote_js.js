@@ -12,16 +12,16 @@
   args.parse(process.argv)
   args.port = args.port || 3400;
 
-  RemoteExecution.init(args);
-  RemoteExecution.printInstructions();
+  var remote = new RemoteExecution(args);
+  remote.printInstructions();
 
   var commands = {
     ls: {
       desc: 'list connected clients',
       fn: function () {
         var conn_id;
-        for (conn_id in RemoteExecution.clients) {
-          if (conn_id === RemoteExecution.client) {
+        for (conn_id in remote.clients) {
+          if (conn_id === remote.client) {
             console.log("  * " + conn_id);
           } else {
             console.log("    " + conn_id);
@@ -31,30 +31,30 @@
           console.log("Select your client with the select command");
         } else {
           console.log("No clients connected");
-          RemoteExecution.printInstructions();
+          remote.printInstructions();
         }
       }
     },
     select: {
       desc: 'select a connected client',
       fn: function (client) {
-        RemoteExecution.selectClient(client[0]);
+        remote.selectClient(client[0]);
       }
     },
     selected: {
       desc: 'shows selected client',
       fn: function () {
-        if (RemoteExecution.client === undefined) {
+        if (remote.client === undefined) {
           console.log("No client selected");
         } else {
-          console.log("Selected client: " + RemoteExecution.client);
+          console.log("Selected client: " + remote.client);
         }
       }
     },
     disconnect: {
       desc: 'disconnect current client',
       fn: function () {
-        RemoteExecution.disconnect();
+        remote.disconnect();
       }
     },
     help: {
@@ -82,7 +82,7 @@
     var items = commands;
 
     if (linePartial.match(/^select /)) {
-      items = RemoteExecution.clients;
+      items = remote.clients;
       linePartial = linePartial.substr('select '.length);
     }
 
@@ -110,7 +110,7 @@
       return;
     }
 
-    RemoteExecution.sendCmd(line);
+    remote.sendCmd(line);
     shell.prompt();
   });
   shell.setPrompt('> ');
