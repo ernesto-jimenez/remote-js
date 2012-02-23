@@ -72,16 +72,16 @@
     },
     exit: {
       desc: 'exit',
-      fn: function() {
+      fn: function () {
         process.exit(0);
       }
     }
   };
 
-  var shell = readline.createInterface(process.stdin, process.stdout, function(linePartial, callback) {
+  var shell = readline.createInterface(process.stdin, process.stdout, function (linePartial, callback) {
     var items = commands;
 
-    if(linePartial.match(/^select /)) {
+    if (linePartial.match(/^select /)) {
       items = RemoteExecution.clients;
       linePartial = linePartial.substr('select '.length);
     }
