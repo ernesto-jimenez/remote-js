@@ -98,7 +98,20 @@ RemoteJSDebugger.prototype.send = function (msg, object) {
 };
 
 RemoteJSDebugger.prototype.sendResult = function (result) {
-	this.send('cmdresult', result);
+  try {
+	  this.send('cmdresult', result);
+  } catch(ex) {
+    // can't send it the easy way send a simplified version.
+    var data = {};
+    for(var k in result) {
+      if(result[k]) {
+        data[k] = result[k].toString();
+      } else {
+        data[k] = result[k];
+      }
+    }
+    this.send('cmdresult', data);
+  }
 };
 
 RemoteJSDebugger.prototype.sendException = function (exception) {
