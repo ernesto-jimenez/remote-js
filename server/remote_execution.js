@@ -81,7 +81,11 @@ RemoteExecution.prototype.sendCmd = function (clientId, cmd) {
 
 RemoteExecution.prototype.send = function (clientId, data) {
   var client = this.clients[clientId];
-  client.connection.emit("command", data);
+  if (client) {
+    client.connection.emit("command", data);
+  } else {
+    throw new Error("Invalid client id " + clientId);
+  }
 };
 
 exports.RemoteExecution = RemoteExecution;

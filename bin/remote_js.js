@@ -203,7 +203,7 @@
     }
     shell.prompt();
   });
-  
+
   shell.setPrompt('> ');
 
   printInstructions(args);
