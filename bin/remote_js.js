@@ -61,6 +61,12 @@
         }
         console.log("Any other input is executed in the remote client\n");
       }
+    },
+    exit: {
+      desc: 'exit',
+      fn: function() {
+        process.exit(0);
+      }
     }
   };
 
