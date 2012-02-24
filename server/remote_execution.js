@@ -1,171 +1,91 @@
 var io = require('socket.io'),
-		os = require('os'),
-		http = require('http'),
-		fs = require("fs"),
-		colorize = require('colorize'),
-		path = require("path");
+  http = require('http'),
+  fs = require("fs"),
+  util = require("util"),
+  events = require("events"),
+  path = require("path");
 
-function log(msg) {
-	console.log(colorize.ansify('#gray[' + msg + ']'));
-}
+var RemoteExecution = function (args) {
+  var self = this;
 
-function error(msg) {
-	console.log(colorize.ansify('#red[' + msg + ']'));
-}
+  this.args = args;
+  this.clients = {};
+  this.setupServer();
+};
 
-function clientLog(msg) {
-	console.log(colorize.ansify('#blue[' + msg + ']'));
-}
+util.inherits(RemoteExecution, events.EventEmitter);
 
-function clientOutput(msg) {
-	process.stdout.write(colorize.ansify('=> #green['));
-	console.log(msg);
-	process.stdout.write(colorize.ansify(']'));
-}
+RemoteExecution.prototype.setupServer = function () {
+  var httpServer = this.httpServer();
 
-var RemoteExecution = {
-	init: function () {
-		RemoteExecution.clients = {};
-		RemoteExecution.client = undefined;
-		RemoteExecution.setupServer();
-	},
+  var server = io.listen(httpServer);
+  if (this.args.verbose) {
+    server = server.set('log level', 3);
+  } else {
+    server = server.set('log level', 1);
+  }
 
-	printInstructions: function () {
-		var url = 'http://' + os.hostname() + ':3400/client.js';
-		log('Add this to your HTML and open the webpage <script src="' + url + '"></script>');
-	},
+  // Handle WebSocket Requests
+  server.of('/remote-js').on("connection", this.clientConnected.bind(this));
 
-	setupServer: function () {
-		var httpServer = RemoteExecution.httpServer();
+  httpServer.listen(this.args.port);
 
-		var server = io.listen(httpServer);
-		if (process.env.debug) {
-			server = server.set('log level', 3);
-		} else {
-			server = server.set('log level', 1);
-		}
+  this.server = server;
+};
 
-		// Handle WebSocket Requests
-		server.of('/remote-js').on("connection", RemoteExecution.clientConnected);
+RemoteExecution.prototype.httpServer = function () {
+  var self = this;
 
-		httpServer.listen(3400);
+  return http.createServer(function (req, res) {
+    if (req.method == "GET") {
+      if (req.url.indexOf("favicon") > -1) {
+        res.writeHead(200, {'Content-Type': 'image/x-icon', 'Connection': 'close'});
+        res.end("");
+      } else if (req.url === "/client.js" || req.url === "/json.js") {
+        res.writeHead(200, {'Content-Type': 'application/javascript', 'Connection': 'close'});
+        var filename = path.normalize(path.join(__dirname, "../client" + req.url));
+        fs.readFile(filename, function (err, data) {
+          if (err) {
+            self.emit('error', err);
+            return;
+          }
+          res.end(data);
+        });
+      }
+    } else {
+      res.writeHead(404);
+      res.end();
+    }
+  });
+};
 
-		RemoteExecution.server = server;
-	},
+RemoteExecution.prototype.clientConnected = function (conn) {
+  this.clients[conn.id] = {connection: conn};
+  conn.on("message", this.receiveMessage.bind(this, conn));
+  conn.on("disconnect", this.clientDisconnected.bind(this, conn));
+  this.emit('clientConnected', conn);
+};
 
-	httpServer: function () {
-		return http.createServer(function(req, res){
-			if(req.method == "GET"){
-				if( req.url.indexOf("favicon") > -1 ){
-					res.writeHead(200, {'Content-Type': 'image/x-icon', 'Connection': 'close'});
-					res.end("");
-				} else if(req.url === "/client.js" || req.url === "/json.js") {
-					res.writeHead(200, {'Content-Type': 'application/javascript', 'Connection': 'close'});
-					fs.createReadStream( path.normalize(path.join(__dirname, "../client" + req.url)), {
-						'flags': 'r',
-						'encoding': 'binary',
-						'mode': 0666,
-						'bufferSize': 4 * 1024
-					}).addListener("data", function(chunk){
-						res.write(chunk, 'binary');
-					}).addListener("end",function() {
-						res.end();
-					});
-				}
-			} else {
-				res.writeHead(404);
-				res.end();
-			}
-		});
-	},
+RemoteExecution.prototype.clientDisconnected = function (conn) {
+  delete this.clients[conn.id];
+  this.emit('clientDisconnected', conn);
+};
 
-	clientConnected: function (conn){
-		log("Connected " + conn.id);
-		RemoteExecution.clients[conn.id] = {connection: conn};
-		if (RemoteExecution.client === undefined) {
-			RemoteExecution.selectClient(conn.id);
-		}
+RemoteExecution.prototype.receiveMessage = function (conn, message) {
+  this.emit('message', conn, message);
+};
 
-		conn.on("message", function (message) {
-			RemoteExecution.receiveMessage(conn, message);
-		});
+RemoteExecution.prototype.sendCmd = function (clientId, cmd) {
+  this.send(clientId, {cmd: 'run', data: cmd});
+};
 
-		conn.on("disconnect", function () {
-			RemoteExecution.clientDisconnected(conn);
-		});
-	},
-
-	clientDisconnected: function (conn) {
-		log("Disconnected " + conn.id);
-		delete RemoteExecution.clients[conn.id];
-		if (RemoteExecution.client === conn.id) {
-			RemoteExecution.client = undefined;
-			RemoteExecution.selectClient();
-		}
-	},
-
-	receiveMessage: function (conn, message) {
-		try {
-			if (RemoteExecution.messages[message.msg]) {
-				RemoteExecution.messages[message.msg](message.data);
-			} else {
-				log("Unknown message");
-				log(client_message);
-			}
-		} catch (exception) {
-			log(exception.stack);
-		}
-		log('');
-	},
-
-	messages: {
-		cmdresult: function (data) {
-			clientOutput(data);
-		},
-		exception: function (data) {
-			error("Remote Error: " + data.message);
-			if (data.sourceURL) error("  " + data.sourceURL + ':' + data.line);
-		},
-		log: function (msg) {
-			clientLog(msg);
-		}
-	},
-
-	selectClient: function (client) {
-		for (var conn_id in RemoteExecution.clients) {
-			if (client == undefined || (conn_id + '').match("^"+client)) {
-				RemoteExecution.client = conn_id;
-				log("Selected client " + conn_id);
-				return;
-			}
-		}
-
-		log('No client selected');
-	},
-
-	sendCmd: function (cmd) {
-		RemoteExecution.send({cmd: 'run', data: cmd});
-	},
-
-	requestInfo: function () {
-		RemoteExecution.send({cmd: 'requestInfo'});
-	},
-
-	send: function (data) {
-		if (RemoteExecution.client) {
-			var client = RemoteExecution.clients[RemoteExecution.client];
-			client.connection.emit("command", data);
-		} else {
-			error("ERROR: no client connected, type 'help'");
-		}
-	},
-	
-	disconnect: function () {
-		if (RemoteExecution.client) {
-			var client = RemoteExecution.clients[RemoteExecution.client];
-			client.connection.close();
-		}
-	}
+RemoteExecution.prototype.send = function (clientId, data) {
+  var client = this.clients[clientId];
+  if (client) {
+    client.connection.emit("command", data);
+  } else {
+    throw new Error("Invalid client id " + clientId);
+  }
 };
 
 exports.RemoteExecution = RemoteExecution;

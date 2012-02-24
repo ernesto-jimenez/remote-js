@@ -64,11 +64,19 @@ RemoteJSDebugger.prototype.socketSend = function (data) {
 };
 
 RemoteJSDebugger.prototype.serviceUrl = function () {
+  if(window.remoteJsServiceUrl) {
+    return window.remoteJsServiceUrl;
+  }
 	var script, scripts = document.getElementsByTagName('script');
 	for (var i in scripts) {
 		script = scripts[i].src;
-		if (script && script.match(':3400')) break;
+		if (script && script.match('/client.js')) break;
 	}
+  if(!script) {
+    var msg = "Could not find window.remoteJsServiceUrl try setting it explicitly";
+    alert(msg);
+    throw new Error(msg);
+  }
 	return script.replace('/client.js', '/');
 };
 
@@ -90,7 +98,20 @@ RemoteJSDebugger.prototype.send = function (msg, object) {
 };
 
 RemoteJSDebugger.prototype.sendResult = function (result) {
-	this.send('cmdresult', result);
+  try {
+	  this.send('cmdresult', result);
+  } catch(ex) {
+    // can't send it the easy way send a simplified version.
+    var data = {};
+    for(var k in result) {
+      if(result[k]) {
+        data[k] = result[k].toString();
+      } else {
+        data[k] = result[k];
+      }
+    }
+    this.send('cmdresult', data);
+  }
 };
 
 RemoteJSDebugger.prototype.sendException = function (exception) {
