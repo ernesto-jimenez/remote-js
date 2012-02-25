@@ -37,3 +37,8 @@ Now you just need to copy & paste the script tag into your web page and start pl
 
 This is a fast release for the tool. Feel free to modify it and send your Pull
 Requests with fixes and improvements :)
+
+## Contributors
+
+  * Ernesto Jiménez
+  * Joe Ferner

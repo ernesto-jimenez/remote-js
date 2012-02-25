@@ -1,6 +1,6 @@
 {
   "name": "remote_js",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Command-line remote javascript console to debug your mobile web app",
   "homepage": "https://github.com/ernesto-jimenez/remote-js",
   "keywords": ["remote", "javascript console"],
@@ -9,6 +9,12 @@
     "email": "erjica@gmail.com",
     "url": "http://twitter.com/ernesto_jimenez"
   },
+  "contributors": [
+    {
+      "name": "Joe Ferner",
+      "email": "joe.ferner@nearinfinity.com"
+    }
+  ],
   "repository": {
     "type": "git",
     "url":  "https://ernesto-jimenez@github.com/ernesto-jimenez/remote-js.git"
