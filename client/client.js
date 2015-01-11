@@ -12,17 +12,43 @@ var RemoteJSDebugger = function () {
 };
 
 RemoteJSDebugger.prototype.createInstance = function () {
+	var dummy = function() {};
+
 	RemoteJSDebugger.instance.connect();
+
+	// save link on native console
 	RemoteJSDebugger.console = window.console || {
-		log: function () {}, debug: function () {}
+		log: dummy, debug: dummy
 	};
+
 	var log = function (data) {
 		RemoteJSDebugger.instance.send('log', data);
 	};
+
 	window.console = {
 		log: log,
-		debug: log
+		info: log,
+		debug: log,
+		error: log
 	};
+
+	(function(con) {
+		// Console-polyfill. MIT license.
+		// https://github.com/paulmillr/console-polyfill
+		// Make it safe to do console.log() always.
+		'use strict';
+		var prop, method;
+		var empty = {};
+		var properties = 'memory'.split(',');
+		var methods = ('assert,clear,count,dir,dirxml,exception,group,' +
+			'groupCollapsed,groupEnd,markTimeline,profile,profiles,profileEnd,' +
+			'show,table,time,timeEnd,timeline,timelineEnd,timeStamp,trace,warn').split(',');
+
+		while (prop = properties.pop()) con[prop] = con[prop] || empty;
+
+		while (method = methods.pop()) con[method] = con[method] || dummy;
+
+	})(window.console);
 };
 
 RemoteJSDebugger.prototype.loadScript = function (src, loadCallback) {
