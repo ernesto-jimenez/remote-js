@@ -11,7 +11,7 @@
     .option('-v, --verbose', 'Verbose output')
     .option('-p, --port <n>', 'Port (default: 3400)', parseInt);
 
-  args.parse(process.argv)
+  args.parse(process.argv);
   args.port = args.port || 3400;
 
   var selectedClient = undefined;
@@ -26,7 +26,9 @@
   }
 
   function clientLog (msg) {
-    console.log(colorize.ansify('#blue[' + msg + ']'));
+    process.stdout.write(colorize.ansify('=> #blue['));
+    console.log.apply(console, msg.args);
+    process.stdout.write(colorize.ansify(']'));
   }
 
   function clientOutput (msg) {
