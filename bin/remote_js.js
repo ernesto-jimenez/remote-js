@@ -6,6 +6,7 @@
   var args = require('commander');
   var colorize = require('colorize');
   var os = require('os');
+  var fs = require('fs');
 
   args
     .option('-v, --verbose', 'Verbose output')
@@ -139,6 +140,25 @@
         if (selectedClient) {
           selectedClient = undefined;
           selectClient();
+        }
+      }
+    },
+    execute: {
+      desc: 'execute file, execute <file.js>',
+      fn: function (filesPaths) {
+        if (selectedClient) {
+          filesPaths.forEach(function (filePath) {
+            if (fs.lstatSync(filePath).isFile()) {
+              fs.readFile(filePath, function (err, data) {
+                if (err) error(err);
+                var cmd = data.toString().trim();
+                remote.sendCmd(selectedClient, cmd);
+              });
+            }
+          });
+        } else {
+          console.log("No clients connected");
+          printInstructions(args);
         }
       }
     },
