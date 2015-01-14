@@ -78,7 +78,8 @@ RemoteJSDebugger.prototype.run = function (command) {
 
 RemoteJSDebugger.commands = {
 	run: function (cmd) {
-		RemoteJSDebugger.instance.sendResult(eval(cmd));
+		var fn = new Function('return (' + cmd + ');');
+		RemoteJSDebugger.instance.sendResult(fn.call(window));
 	}
 };
 
