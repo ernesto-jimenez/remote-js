@@ -21,8 +21,9 @@ RemoteJSDebugger.prototype.createInstance = function () {
 		log: dummy, debug: dummy
 	};
 
-	var log = function (data) {
-		RemoteJSDebugger.instance.send('log', data);
+	var log = function () {
+		var args = Array.prototype.slice.call(arguments);
+		RemoteJSDebugger.instance.send('log', args);
 	};
 
 	window.console = {
