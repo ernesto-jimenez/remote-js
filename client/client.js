@@ -21,10 +21,12 @@ RemoteJSDebugger.prototype.createInstance = function () {
 		log: dummy, debug: dummy
 	};
 
-	var log = function (data) {
-		RemoteJSDebugger.instance.send('log', data);
+	var log = function () {
+		var args = Array.prototype.slice.call(arguments);
+		RemoteJSDebugger.instance.send('log', args);
 	};
 
+	window._console = RemoteJSDebugger.console;
 	window.console = {
 		log: log,
 		info: log,
@@ -77,7 +79,8 @@ RemoteJSDebugger.prototype.run = function (command) {
 
 RemoteJSDebugger.commands = {
 	run: function (cmd) {
-		RemoteJSDebugger.instance.sendResult(eval(cmd));
+		var fn = new Function('return ' + cmd);
+		RemoteJSDebugger.instance.sendResult(fn.call(window));
 	}
 };
 
@@ -120,12 +123,14 @@ RemoteJSDebugger.prototype.connect = function () {
 };
 
 RemoteJSDebugger.prototype.send = function (msg, object) {
-	this.socket.emit("message", {msg: msg, data: object});
+	this.socket.emit('message', {msg: msg, data: object});
 };
 
 RemoteJSDebugger.prototype.sendResult = function (result) {
   try {
+
 	  this.send('cmdresult', result);
+
   } catch(ex) {
     // can't send it the easy way send a simplified version.
     var data = {};
@@ -141,7 +146,10 @@ RemoteJSDebugger.prototype.sendResult = function (result) {
 };
 
 RemoteJSDebugger.prototype.sendException = function (exception) {
-	this.send('exception', exception);
+	this.send('exception', {
+		message: typeof exception === 'string' ? exception : exception.message,
+		stack: exception.stack
+	});
 };
 
 var rjs = new RemoteJSDebugger();

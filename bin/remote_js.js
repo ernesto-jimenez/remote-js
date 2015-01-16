@@ -6,32 +6,50 @@
   var args = require('commander');
   var colorize = require('colorize');
   var os = require('os');
+  var fs = require('fs');
 
   args
     .option('-v, --verbose', 'Verbose output')
     .option('-p, --port <n>', 'Port (default: 3400)', parseInt);
 
-  args.parse(process.argv)
+  args.parse(process.argv);
   args.port = args.port || 3400;
 
   var selectedClient = undefined;
   var remote = new RemoteExecution(args);
 
   function log (msg) {
-    console.log(colorize.ansify('#gray[' + msg + ']'));
+    process.stdout.write(colorize.ansify('#gray['));
+    loging(msg);
+    process.stdout.write(colorize.ansify(']'));
   }
 
-  function error (msg) {
-    console.log(colorize.ansify('#red[' + msg + ']'));
+  function loging(msg, stack) {
+    if (Array.isArray(msg))
+      console.log.apply(console, msg);
+    else
+      console.log(msg);
+
+    if (stack) {
+      console.log(stack);
+    }
+  }
+
+  function error (msg, stack) {
+    process.stdout.write(colorize.ansify('#red['));
+    loging(msg, stack);
+    process.stdout.write(colorize.ansify(']'));
   }
 
   function clientLog (msg) {
-    console.log(colorize.ansify('#blue[' + msg + ']'));
+    process.stdout.write(colorize.ansify('#blue['));
+    loging(msg);
+    process.stdout.write(colorize.ansify(']'));
   }
 
   function clientOutput (msg) {
     process.stdout.write(colorize.ansify('=> #green['));
-    console.log(msg);
+    loging(msg);
     process.stdout.write(colorize.ansify(']'));
   }
 
@@ -53,7 +71,7 @@
   }
 
   remote.on('error', function(err) {
-    error(err);
+    error(err.message, err.stack);
   });
 
   remote.on('clientConnected', function (conn) {
@@ -78,8 +96,12 @@
           clientOutput(message.data);
           break;
         case 'exception':
-          error("Remote Error: " + message.data.message);
-          if (message.data.sourceURL) error("  " + message.data.sourceURL + ':' + message.data.line);
+
+          error("Remote Error: " + message.data.message, message.data.stack);
+
+          if (message.data.sourceURL)
+            error("  " + message.data.sourceURL + ':' + message.data.line);
+
           break;
         case 'log':
           clientLog(message.data);
@@ -137,6 +159,25 @@
         if (selectedClient) {
           selectedClient = undefined;
           selectClient();
+        }
+      }
+    },
+    execute: {
+      desc: 'execute file, execute <file.js>',
+      fn: function (filesPaths) {
+        if (selectedClient) {
+          filesPaths.forEach(function (filePath) {
+            if (fs.lstatSync(filePath).isFile()) {
+              fs.readFile(filePath, function (err, data) {
+                if (err) error(err);
+                var cmd = data.toString().trim();
+                remote.sendCmd(selectedClient, cmd);
+              });
+            }
+          });
+        } else {
+          console.log("No clients connected");
+          printInstructions(args);
         }
       }
     },
