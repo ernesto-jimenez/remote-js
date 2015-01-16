@@ -19,22 +19,37 @@
   var remote = new RemoteExecution(args);
 
   function log (msg) {
-    console.log(colorize.ansify('#gray[' + msg + ']'));
+    process.stdout.write(colorize.ansify('#gray['));
+    loging(msg);
+    process.stdout.write(colorize.ansify(']'));
   }
 
-  function error (msg) {
-    console.log(colorize.ansify('#red[' + msg + ']'));
+  function loging(msg, stack) {
+    if (Array.isArray(msg))
+      console.log.apply(console, msg);
+    else
+      console.log(msg);
+
+    if (stack) {
+      console.log(stack);
+    }
+  }
+
+  function error (msg, stack) {
+    process.stdout.write(colorize.ansify('#red['));
+    loging(msg, stack);
+    process.stdout.write(colorize.ansify(']'));
   }
 
   function clientLog (msg) {
-    process.stdout.write(colorize.ansify('=> #blue['));
-    console.log.apply(console, msg.args);
+    process.stdout.write(colorize.ansify('#blue['));
+    loging(msg);
     process.stdout.write(colorize.ansify(']'));
   }
 
   function clientOutput (msg) {
     process.stdout.write(colorize.ansify('=> #green['));
-    console.log(msg);
+    loging(msg);
     process.stdout.write(colorize.ansify(']'));
   }
 
@@ -56,7 +71,7 @@
   }
 
   remote.on('error', function(err) {
-    error(err);
+    error(err.message, err.stack);
   });
 
   remote.on('clientConnected', function (conn) {
@@ -81,8 +96,12 @@
           clientOutput(message.data);
           break;
         case 'exception':
-          error("Remote Error: " + message.data.message);
-          if (message.data.sourceURL) error("  " + message.data.sourceURL + ':' + message.data.line);
+
+          error("Remote Error: " + message.data.message, message.data.stack);
+
+          if (message.data.sourceURL)
+            error("  " + message.data.sourceURL + ':' + message.data.line);
+
           break;
         case 'log':
           clientLog(message.data);
